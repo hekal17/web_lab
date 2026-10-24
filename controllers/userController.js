@@ -22,6 +22,10 @@ const getUserByID = (req, res) => {
 
 const newUser = (req, res) => {
     const {username, password} = req.body;
+    
+    if (typeof username !== "string" || username.trim() === "" || typeof password !== "string" || password.trim() === "") {
+    return res.status(400).json({ error: "username and password are required" });
+};
     const newUser = {
         id : users.length + 1,
         username : username,
