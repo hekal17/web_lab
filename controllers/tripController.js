@@ -1,4 +1,4 @@
-const trips = require('../models/trip');
+const trips = require('../models/tripModel');
 
 const getAllTrips = (req, res) => {
     res.status(200).json({

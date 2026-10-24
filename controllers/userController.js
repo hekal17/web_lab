@@ -1,4 +1,4 @@
-const users = require('../models/user');
+const users = require('../models/userModel');
 
 const getAllUsers = (req, res) => {
     res.status(200).json({
