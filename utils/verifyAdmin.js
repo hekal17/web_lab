@@ -1,11 +1,11 @@
 const verifyAdmin = (req, res, next) => {
-    const role = req.headers['role'];
+    const role = req.headers["x-role"];
 
     if (role === "admin") {
-        return next;
-}
-
-res.status(403).json({ message: "Admin access required" });
+        next();
+    } else {
+        res.status(403).json({ message: "Admin access required" });
+    }
 };
 
 module.exports = {

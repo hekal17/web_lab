@@ -70,11 +70,57 @@ const checkBudget = (req, res) => {
     return res.status(200).json(afforableTrips);
 }
 
-module.exports = {
+const compareTrips = (req, res) => {
+    const { tripId1, tripId2 } = req.body;
+
+    if (!Number.isInteger(tripId1) || !Number.isInteger(tripId2) || tripId1 <= 0 || tripId2 <= 0 || tripId1 === tripId2) {
+        return res.status(400).json({ message: 'tripId1 and tripId2 must be two different positive integers' });
+    }
+
+    let trip1 = null;
+    let trip2 = null;
+
+    for (let i = 0; i < trips.length; i++) {
+        if (trips[i].id === tripId1) {
+            trip1 = trips[i];
+        }
+        if (trips[i].id === tripId2) {
+            trip2 = trips[i];
+        }
+    }
+    if (!trip1 || !trip2) {
+        return res.status(404).json({ message: 'Trip not found' });
+    }
+
+    if (trip1.cost === trip2.cost) {
+        return res.status(200).json({
+            destination1: trip1.destination,
+            destination2: trip2.destination,
+            costDifference: 0,
+            message: 'Both trips have the same cost'
+        });
+    }
+
+    const costDifference = Math.abs(trip1.cost - trip2.cost);
+    let cheaperDestination = trip2.destination;
+    if (trip1.cost < trip2.cost) {
+        cheaperDestination = trip1.destination;
+    }
+
+    res.status(200).json({
+        destination1: trip1.destination,
+        destination2: trip2.destination,
+        costDifference: costDifference,
+        cheaperDestination: cheaperDestination
+    });
+};
+
+module.exports = { 
     getAllTrips,
     getTripByID,
     newTrip,
     updateTrip,
     deleteTrip,
-    checkBudget
+    checkBudget,
+    compareTrips
 };
