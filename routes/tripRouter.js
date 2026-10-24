@@ -1,17 +1,18 @@
 const express = require('express');
 const {getAllTrips, getTripByID, newTrip, updateTrip, deleteTrip, checkBudget} = require('../controllers/tripController');
-const {validateBudget} = require('../utils/middlewares')
+const {validateBudget} = require('../utils/validateBudget')
+const {verifyAdmin} = require('../utils/verifyAdmin')
 const tripRouter = express.Router();
 
 tripRouter.get('/', getAllTrips);
 
 tripRouter.get('/:id', getTripByID);
 
-tripRouter.post('/', newTrip);
+tripRouter.post('/', verifyAdmin, newTrip);
 
-tripRouter.put('/:id', updateTrip);
+tripRouter.put('/:id', verifyAdmin, updateTrip);
 
-tripRouter.delete('/:id', deleteTrip);
+tripRouter.delete('/:id', verifyAdmin, deleteTrip);
 
 tripRouter.post('/check-budget', validateBudget, checkBudget);
 
