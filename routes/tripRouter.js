@@ -3,7 +3,10 @@ const {getAllTrips, getTripByID, newTrip, updateTrip, deleteTrip, checkBudget, c
 const {validateBudget} = require('../utils/validateBudget')
 const {verifyAdmin} = require('../utils/verifyAdmin')
 const {validateTrip} = require('../utils/validateTrip')
+const {logRequest} = require('../utils/logRequest')
 const tripRouter = express.Router();
+
+tripRouter.use(logRequest);
 
 tripRouter.get('/', getAllTrips);
 
