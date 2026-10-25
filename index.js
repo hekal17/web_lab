@@ -1,6 +1,6 @@
 const express = require('express');
-const tripRouter = require('./routes/tripRouter')
-const userRouter = require('./routes/userRouter')
+const tripRouter = require('./routes/tripRouter.js')
+const userRouter = require('./routes/userRouter.js')
 
 const app = express();
 app.use(express.json());

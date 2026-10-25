@@ -1,6 +1,6 @@
 const express = require('express');
-const {getAllTrips, getTripByID, newTrip, updateTrip, deleteTrip, checkBudget} = require('../controllers/tripController');
-const {validateBudget} = require('../utils/middlewares')
+const {getAllTrips, getTripByID, newTrip, updateTrip, deleteTrip, checkBudget} = require('../controllers/tripController.js');
+const {validateBudget} = require('../utils/middlewares.js')
 const tripRouter = express.Router();
 
 tripRouter.get('/', getAllTrips);

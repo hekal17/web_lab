@@ -1,4 +1,5 @@
-const trips = require('../models/tripModel');
+const trips = require('../models/tripModel.js');
+const { db } = require('../db.js')
 
 const getAllTrips = (req, res) => {
     res.status(200).json({
@@ -20,15 +21,36 @@ const getTripByID = (req, res) => {
     res.status(404).json({ message: 'Trip not found'});
 };
 
-const newTrip = (req, res) => {
+const newTrip = async (req, res) => {
     const {destination, cost} = req.body;
-    const newTrip = {
-        id : trips.length + 1,
-        destination : destination,
-        cost : cost
-    };
-    trips.push(newTrip);
-    res.status(201).json(newTrip);
+    if (
+        typeof destination !== 'string' || !destination.trim() ||
+        typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0
+    ) {
+        return res.status(400).json({ message: 'Invalid input' });
+    }
+
+    const query = `
+        INSERT INTO TRIPS (DESTINATION, COST, DESCRIPTION)
+        VALUES (?, ?, ?)
+    `;
+
+    try {
+        const [result] = await db.query(query);
+
+        const [trips] = await db.query(
+            `SELECT * FROM TRIPS WHERE ID = ${result.insertId}`
+        );
+
+        return res.status(201).json({
+            message: 'Trip created successfully',
+            data: trips[0]
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: 'Database error'
+        })
+    }
 };
 
 const updateTrip = (req, res) => {
