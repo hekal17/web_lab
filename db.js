@@ -18,7 +18,18 @@ const createTripTable = `
     )
 `;
 
+const createUserTable = `
+    CREATE TABLE IF NOT EXISTS USERS (
+        ID INT AUTO_INCREMENT PRIMARY KEY,
+        USERNAME VARCHAR(255) NOT NULL,
+        EMAIL VARCHAR(255) UNIQUE NOT NULL,
+        PASSWORD VARCHAR(255) NOT NULL,
+        ROLE ENUM('admin','user') NOT NULL DEFAULT 'user'
+    )
+`;
+
 module.exports = {
     db,
-    createTripTable
+    createTripTable,
+    createUserTable
 }

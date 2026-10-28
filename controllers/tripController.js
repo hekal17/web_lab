@@ -1,28 +1,48 @@
-const trips = require('../models/tripModel.js');
-const { db } = require('../db.js')
+const { db } = require('../db.js');
 
-const getAllTrips = (req, res) => {
-    res.status(200).json({
-        status: 'success',
-        message: 'Trips retrieved successfully',
-        results: trips.length,
-        data: trips
-    });
+const getAllTrips = async (req, res) => {
+    try {
+        const [trips] = await db.query("SELECT * FROM TRIPS");
+
+        res.status(200).json({
+            status: 'success',
+            message: 'Trips retrieved successfully',
+            results: trips.length,
+            data: trips
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: 'Database error'
+        });
+    }
 };
 
-const getTripByID = (req, res) => {
-    
+const getTripByID = async (req, res) => {
     const id = Number(req.params.id);
-    for (let i = 0; i < trips.length; i++) {
-        if (trips[i].id === id) {
-            return res.send(trips[i]);
-        };
-    };
-    res.status(404).json({ message: 'Trip not found'});
+
+    try {
+        const [trips] = await db.query(
+            "SELECT * FROM TRIPS WHERE ID = ?",
+            [id]
+        );
+
+        if (trips.length === 0) {
+            return res.status(404).json({ message: 'Trip not found' });
+        }
+
+        return res.json(trips[0]);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: 'Database error'
+        });
+    }
 };
 
 const newTrip = async (req, res) => {
-    const {destination, cost} = req.body;
+    const { destination, cost, description } = req.body;
+
     if (
         typeof destination !== 'string' || !destination.trim() ||
         typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0
@@ -36,10 +56,11 @@ const newTrip = async (req, res) => {
     `;
 
     try {
-        const [result] = await db.query(query);
+        const [result] = await db.query(query, [destination.trim(), cost, description ?? null]);
 
         const [trips] = await db.query(
-            `SELECT * FROM TRIPS WHERE ID = ${result.insertId}`
+            "SELECT * FROM TRIPS WHERE ID = ?",
+            [result.insertId]
         );
 
         return res.status(201).json({
@@ -47,97 +68,153 @@ const newTrip = async (req, res) => {
             data: trips[0]
         });
     } catch (error) {
+        console.error(error);
         return res.status(500).json({
             message: 'Database error'
-        })
+        });
     }
 };
 
-const updateTrip = (req, res) => {
-    
+const updateTrip = async (req, res) => {
     const id = Number(req.params.id);
-    const {destination, cost} = req.body;
+    const { destination, cost } = req.body;
 
-    for (let i = 0; i < trips.length; i++) {
-        if (trips[i].id === id) {
-            trips[i].destination = destination;
-            trips[i].cost = cost;
-            return res.send(trips[i]);
-        };
-    };
-    res.status(404).json({ message: 'Trip not found'});
-};
+    if (
+        typeof destination !== 'string' || !destination.trim() ||
+        typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0
+    ) {
+        return res.status(400).json({ message: 'Invalid input' });
+    }
 
-const deleteTrip = (req, res) => {
-    
-    const id = Number(req.params.id);
+    try {
+        const [result] = await db.query(
+            "UPDATE TRIPS SET DESTINATION = ?, COST = ? WHERE ID = ?",
+            [destination.trim(), cost, id]
+        );
 
-    for (let i = 0; i < trips.length; i++) {
-        if (trips[i].id === id) {
-            const deleted = trips.splice(i, 1); // new array for deleted trips
-            return res.send(deleted[0]);
-        };
-    };
-    res.status(404).json({ message: 'Trip not found'});
-};
-
-const checkBudget = (req, res) => {
-    const { budget } = req.body;
-    const afforableTrips = []
-    for (let i = 0; i < trips.length; i++) {
-        if (trips[i].cost <= budget) {
-            afforableTrips.push(trips[i]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Trip not found' });
         }
-    }
-    return res.status(200).json(afforableTrips);
-}
 
-const compareTrips = (req, res) => {
+        const [trips] = await db.query(
+            "SELECT * FROM TRIPS WHERE ID = ?",
+            [id]
+        );
+
+        return res.json({
+            message: 'Trip updated successfully',
+            data: trips[0]
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: 'Database error'
+        });
+    }
+};
+
+const deleteTrip = async (req, res) => {
+    const id = Number(req.params.id);
+
+    try {
+        const [trips] = await db.query(
+            "SELECT * FROM TRIPS WHERE ID = ?",
+            [id]
+        );
+
+        if (trips.length === 0) {
+            return res.status(404).json({ message: 'Trip not found' });
+        }
+
+        await db.query("DELETE FROM TRIPS WHERE ID = ?", [id]);
+
+        return res.json({
+            message: 'Trip deleted successfully',
+            data: trips[0]
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: 'Database error'
+        });
+    }
+};
+
+const checkBudget = async (req, res) => {
+    const { budget } = req.body;
+
+    if (typeof budget !== 'number' || !Number.isFinite(budget) || budget < 0) {
+        return res.status(400).json({ message: 'budget must be a positive number' });
+    }
+
+    try {
+        const [affordableTrips] = await db.query(
+            "SELECT * FROM TRIPS WHERE COST <= ?",
+            [budget]
+        );
+
+        return res.status(200).json(affordableTrips);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: 'Database error'
+        });
+    }
+};
+
+const compareTrips = async (req, res) => {
     const { tripId1, tripId2 } = req.body;
 
     if (!Number.isInteger(tripId1) || !Number.isInteger(tripId2) || tripId1 <= 0 || tripId2 <= 0 || tripId1 === tripId2) {
         return res.status(400).json({ message: 'tripId1 and tripId2 must be two different positive integers' });
     }
 
-    let trip1 = null;
-    let trip2 = null;
+    try {
+        const [rows] = await db.query(
+            "SELECT * FROM TRIPS WHERE ID IN (?, ?)",
+            [tripId1, tripId2]
+        );
 
-    for (let i = 0; i < trips.length; i++) {
-        if (trips[i].id === tripId1) {
-            trip1 = trips[i];
-        }
-        if (trips[i].id === tripId2) {
-            trip2 = trips[i];
-        }
-    }
-    if (!trip1 || !trip2) {
-        return res.status(404).json({ message: 'Trip not found' });
-    }
+        const trip1 = rows.find(t => t.ID === tripId1);
+        const trip2 = rows.find(t => t.ID === tripId2);
 
-    if (trip1.cost === trip2.cost) {
-        return res.status(200).json({
-            destination1: trip1.destination,
-            destination2: trip2.destination,
-            costDifference: 0,
-            message: 'Both trips have the same cost'
+        if (!trip1 || !trip2) {
+            return res.status(404).json({ message: 'Trip not found' });
+        }
+
+        const cost1 = Number(trip1.COST);
+        const cost2 = Number(trip2.COST);
+
+        if (cost1 === cost2) {
+            return res.status(200).json({
+                destination1: trip1.DESTINATION,
+                destination2: trip2.DESTINATION,
+                costDifference: 0,
+                message: 'Both trips have the same cost'
+            });
+        }
+
+        const costDifference = Math.abs(cost1 - cost2);
+        let cheaperDestination = trip2.DESTINATION;
+        if (cost1 < cost2) {
+            cheaperDestination = trip1.DESTINATION;
+        }
+
+        res.status(200).json({
+            destination1: trip1.DESTINATION,
+            destination2: trip2.DESTINATION,
+            costDifference: costDifference,
+            cheaperDestination: cheaperDestination
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: 'Database error'
         });
     }
-
-    const costDifference = Math.abs(trip1.cost - trip2.cost);
-    let cheaperDestination = trip2.destination;
-    if (trip1.cost < trip2.cost) {
-        cheaperDestination = trip1.destination;
-    }
-
-    res.status(200).json({
-        destination1: trip1.destination,
-        destination2: trip2.destination,
-        costDifference: costDifference,
-        cheaperDestination: cheaperDestination
-    });
 };
 
-module.exports = { 
+module.exports = {
     getAllTrips,
     getTripByID,
     newTrip,

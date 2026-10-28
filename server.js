@@ -1,5 +1,5 @@
 const app = require('./index');
-const { db, createTripTable } = require('./db.js')
+const { db, createTripTable, createUserTable } = require('./db.js')
 
 const PORT = 8080;
 const HOSTNAME = '127.0.0.1';
@@ -8,6 +8,9 @@ async function startServer() {
     try {
         await db.query(createTripTable);
         console.log('Trips table created or already exists.');
+
+        await db.query(createUserTable);
+        console.log('Users table created or already exists.');
 
         app.listen(PORT, HOSTNAME, () => {
             console.log("Server running...");
