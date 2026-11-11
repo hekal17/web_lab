@@ -1,5 +1,5 @@
 const express = require('express');
-const {getAllTrips, getTripByID, newTrip, updateTrip, deleteTrip, checkBudget, compareTrips} = require('../controllers/tripController');
+const {getAllTrips, getTripByID, newTrip, updateTrip, deleteTrip, getTripRatings, checkBudget, compareTrips} = require('../controllers/tripController');
 const {validateBudget} = require('../utils/validateBudget')
 const {verifyAdmin} = require('../utils/verifyAdmin')
 const {validateTrip} = require('../utils/validateTrip')
@@ -10,11 +10,13 @@ tripRouter.use(logRequest);
 
 tripRouter.get('/', getAllTrips);
 
+tripRouter.get('/ratings', getTripRatings);
+
 tripRouter.get('/:id', getTripByID);
 
 tripRouter.post('/', verifyAdmin, validateTrip, newTrip);
 
-tripRouter.put('/:id', verifyAdmin, updateTrip);
+tripRouter.put('/:id', verifyAdmin, validateTrip, updateTrip);
 
 tripRouter.delete('/:id', verifyAdmin, deleteTrip);
 

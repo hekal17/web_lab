@@ -1,8 +1,9 @@
 const { db } = require('../db.js');
+const { isNonEmptyString, isPositiveNumber, isValidId, trimText } = require('../utils/validation.js');
 
 const getAllTrips = async (req, res) => {
     try {
-        const [trips] = await db.query("SELECT * FROM TRIPS");
+        const [trips] = await db.query("SELECT * FROM TRIP");
 
         res.status(200).json({
             status: 'success',
@@ -19,11 +20,15 @@ const getAllTrips = async (req, res) => {
 };
 
 const getTripByID = async (req, res) => {
+    if (!isValidId(req.params.id)) {
+        return res.status(400).json({ message: 'Invalid ID' });
+    }
+
     const id = Number(req.params.id);
 
     try {
         const [trips] = await db.query(
-            "SELECT * FROM TRIPS WHERE ID = ?",
+            "SELECT * FROM TRIP WHERE ID = ?",
             [id]
         );
 
@@ -41,25 +46,22 @@ const getTripByID = async (req, res) => {
 };
 
 const newTrip = async (req, res) => {
-    const { destination, cost, description } = req.body;
+    const { destination, country, cost, description } = req.body;
 
-    if (
-        typeof destination !== 'string' || !destination.trim() ||
-        typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0
-    ) {
+    if (!isNonEmptyString(destination) || !isNonEmptyString(country) || !isPositiveNumber(cost)) {
         return res.status(400).json({ message: 'Invalid input' });
     }
 
     const query = `
-        INSERT INTO TRIPS (DESTINATION, COST, DESCRIPTION)
-        VALUES (?, ?, ?)
+        INSERT INTO TRIP (DESTINATION, COUNTRY, COST, DESCRIPTION)
+        VALUES (?, ?, ?, ?)
     `;
 
     try {
-        const [result] = await db.query(query, [destination.trim(), cost, description ?? null]);
+        const [result] = await db.query(query, [trimText(destination), trimText(country), cost, description ?? null]);
 
         const [trips] = await db.query(
-            "SELECT * FROM TRIPS WHERE ID = ?",
+            "SELECT * FROM TRIP WHERE ID = ?",
             [result.insertId]
         );
 
@@ -76,20 +78,21 @@ const newTrip = async (req, res) => {
 };
 
 const updateTrip = async (req, res) => {
-    const id = Number(req.params.id);
-    const { destination, cost } = req.body;
+    if (!isValidId(req.params.id)) {
+        return res.status(400).json({ message: 'Invalid ID' });
+    }
 
-    if (
-        typeof destination !== 'string' || !destination.trim() ||
-        typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0
-    ) {
+    const id = Number(req.params.id);
+    const { destination, country, cost } = req.body;
+
+    if (!isNonEmptyString(destination) || !isNonEmptyString(country) || !isPositiveNumber(cost)) {
         return res.status(400).json({ message: 'Invalid input' });
     }
 
     try {
         const [result] = await db.query(
-            "UPDATE TRIPS SET DESTINATION = ?, COST = ? WHERE ID = ?",
-            [destination.trim(), cost, id]
+            "UPDATE TRIP SET DESTINATION = ?, COUNTRY = ?, COST = ? WHERE ID = ?",
+            [trimText(destination), trimText(country), cost, id]
         );
 
         if (result.affectedRows === 0) {
@@ -97,7 +100,7 @@ const updateTrip = async (req, res) => {
         }
 
         const [trips] = await db.query(
-            "SELECT * FROM TRIPS WHERE ID = ?",
+            "SELECT * FROM TRIP WHERE ID = ?",
             [id]
         );
 
@@ -114,11 +117,15 @@ const updateTrip = async (req, res) => {
 };
 
 const deleteTrip = async (req, res) => {
+    if (!isValidId(req.params.id)) {
+        return res.status(400).json({ message: 'Invalid ID' });
+    }
+
     const id = Number(req.params.id);
 
     try {
         const [trips] = await db.query(
-            "SELECT * FROM TRIPS WHERE ID = ?",
+            "SELECT * FROM TRIP WHERE ID = ?",
             [id]
         );
 
@@ -126,11 +133,38 @@ const deleteTrip = async (req, res) => {
             return res.status(404).json({ message: 'Trip not found' });
         }
 
-        await db.query("DELETE FROM TRIPS WHERE ID = ?", [id]);
+        await db.query("DELETE FROM TRIP WHERE ID = ?", [id]);
 
         return res.json({
             message: 'Trip deleted successfully',
             data: trips[0]
+        });
+    } catch (error) {
+        if (error.code === 'ER_ROW_IS_REFERENCED_2') {
+            return res.status(409).json({ message: 'Trip cannot be deleted because it has reviews' });
+        }
+        console.error(error);
+        return res.status(500).json({
+            message: 'Database error'
+        });
+    }
+};
+
+const getTripRatings = async (req, res) => {
+    const query = `
+        SELECT TRIP.ID, TRIP.DESTINATION, TRIP.COUNTRY, REVIEW.RATING
+        FROM TRIP
+        LEFT JOIN REVIEW ON TRIP.ID = REVIEW.TRIP_ID
+        ORDER BY TRIP.ID
+    `;
+
+    try {
+        const [ratings] = await db.query(query);
+
+        return res.status(200).json({
+            status: 'success',
+            results: ratings.length,
+            data: ratings
         });
     } catch (error) {
         console.error(error);
@@ -149,7 +183,7 @@ const checkBudget = async (req, res) => {
 
     try {
         const [affordableTrips] = await db.query(
-            "SELECT * FROM TRIPS WHERE COST <= ?",
+            "SELECT * FROM TRIP WHERE COST <= ?",
             [budget]
         );
 
@@ -171,7 +205,7 @@ const compareTrips = async (req, res) => {
 
     try {
         const [rows] = await db.query(
-            "SELECT * FROM TRIPS WHERE ID IN (?, ?)",
+            "SELECT * FROM TRIP WHERE ID IN (?, ?)",
             [tripId1, tripId2]
         );
 
@@ -220,6 +254,7 @@ module.exports = {
     newTrip,
     updateTrip,
     deleteTrip,
+    getTripRatings,
     checkBudget,
     compareTrips
 };
