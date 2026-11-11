@@ -1,10 +1,11 @@
 const { db } = require('../db.js');
 const { isNonEmptyString, isValidEmail, isStrongPassword, isValidId, trimText } = require('../utils/validation.js');
+const bcrypt = require('bcrypt');
 
 const getAllUsers = async (req, res) => {
     try {
         const [users] = await db.query(
-            "SELECT ID, USERNAME, EMAIL, ROLE, MANAGER_ID FROM USERS"
+            `SELECT ID, USERNAME, EMAIL, ROLE, MANAGER_ID FROM USERS`
         );
 
         res.status(200).json({
@@ -27,12 +28,10 @@ const getUserByID = async (req, res) => {
     }
 
     const id = Number(req.params.id);
+    const myquery = `SELECT ID, USERNAME, EMAIL, ROLE, MANAGER_ID FROM USERS WHERE ID = ?`
 
     try {
-        const [users] = await db.query(
-            "SELECT ID, USERNAME, EMAIL, ROLE, MANAGER_ID FROM USERS WHERE ID = ?",
-            [id]
-        );
+        const [users] = await db.query(myquery, [id]);
 
         if (users.length === 0) {
             return res.status(404).json({ message: 'User not found' });
@@ -76,10 +75,12 @@ const newUser = async (req, res) => {
     `;
 
     try {
-        const [result] = await db.query(query, [trimText(username), trimText(email), password, role ?? "user", managerId ?? null]);
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const [result] = await db.query(query, [trimText(username), trimText(email), hashedPassword, role ?? "user", managerId ?? null]);
 
         const [users] = await db.query(
-            "SELECT ID, USERNAME, EMAIL, ROLE, MANAGER_ID FROM USERS WHERE ID = ?",
+            `SELECT ID, USERNAME, EMAIL, ROLE, MANAGER_ID FROM USERS WHERE ID = ?`,
             [result.insertId]
         );
 
@@ -110,7 +111,7 @@ const deleteUser = async (req, res) => {
 
     try {
         const [users] = await db.query(
-            "SELECT ID, USERNAME, EMAIL, ROLE, MANAGER_ID FROM USERS WHERE ID = ?",
+            `SELECT ID, USERNAME, EMAIL, ROLE, MANAGER_ID FROM USERS WHERE ID = ?`,
             [id]
         );
 
@@ -184,17 +185,19 @@ const updateUser = async (req, res) => {
 
         const current = existing[0];
 
+        const hashedPassword = password !== undefined ? await bcrypt.hash(password, 10) : current.PASSWORD;
+
         await db.query(updateUserQuery, [
             username !== undefined ? trimText(username) : current.USERNAME,
             email !== undefined ? trimText(email) : current.EMAIL,
-            password ?? current.PASSWORD,
+            hashedPassword,
             role ?? current.ROLE,
             managerId === undefined ? current.MANAGER_ID : managerId,
             id
         ]);
 
         const [users] = await db.query(
-            "SELECT ID, USERNAME, EMAIL, ROLE, MANAGER_ID FROM USERS WHERE ID = ?",
+            `SELECT ID, USERNAME, EMAIL, ROLE, MANAGER_ID FROM USERS WHERE ID = ?`,
             [id]
         );
 

@@ -1,5 +1,6 @@
 const { db } = require('../db.js');
 const { isNonEmptyString, isValidEmail, isStrongPassword, trimText } = require('../utils/validation.js');
+const bcrypt = require('bcrypt');
 
 const registerUser = async (req, res) => {
     const { username, email, password } = req.body;
@@ -22,7 +23,8 @@ const registerUser = async (req, res) => {
     `;
 
     try {
-        const [result] = await db.query(query, [trimText(username), trimText(email), password]);
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const [result] = await db.query(query, [trimText(username), trimText(email), hashedPassword]);
 
         const [users] = await db.query(
             "SELECT ID, USERNAME, EMAIL, ROLE FROM USERS WHERE ID = ?",
@@ -61,7 +63,7 @@ const loginUser = async (req, res) => {
             [trimText(email)]
         );
 
-        if (users.length === 0 || users[0].PASSWORD !== password) {
+        if (users.length === 0 || !(await bcrypt.compare(password, users[0].PASSWORD))) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
